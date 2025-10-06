@@ -48,3 +48,6 @@ secrets.py
 .coverage
 htmlcov/
 .tox/
+
+# 数据相关
+.db
