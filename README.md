@@ -76,7 +76,7 @@ weather_ai_agent/
 ```
 
 ## 贡献与交流
-（感谢腾讯元宝，DeepSeek,GitHub Copilot的 大 力 支 持 ！）
+（感谢腾讯元宝，DeepSeek，GitHub Copilot的 大 力 支 持 ！）
 
 欢迎交流和建议！
 
