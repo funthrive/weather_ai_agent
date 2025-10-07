@@ -337,46 +337,53 @@ function startScheduler() {
     }
 
     console.log("启动定时更新");
-
-    fetch('/start_scheduler', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            lat: currentLocation.lat,
-            lon: currentLocation.lon,
-            interval: interval
+    if (autoUpdateTimer) clearInterval(autoUpdateTimer);
+    autoUpdateTimer = setInterval(() => {
+        autoUpdateWeatherAndAdvice();
+    }, interval * 1000); // interval是秒，定时器需要毫秒
+    //updateSchedulerStatus(true);
+    alert(`定时天气更新已启动，间隔: ${interval}秒`);
+    setText('scheduler-status', '运行中');
+    const statusElement = document.getElementById('scheduler-status');
+    if (statusElement) statusElement.className = 'status-on';
+    setDisabled('start-scheduler-btn', true);
+    setDisabled('stop-scheduler-btn', false);
+    /*已完全迁移至前端，无需调用后端
+        fetch('/start_scheduler', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                lat: currentLocation.lat,
+                lon: currentLocation.lon,
+                interval: interval
+            })
         })
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateSchedulerStatus(true);
-                console.log("定时更新启动成功");
-
-                // 新增：定时自动刷新天气和建议
-                if (autoUpdateTimer) clearInterval(autoUpdateTimer);
-                autoUpdateTimer = setInterval(() => {
-                    autoUpdateWeatherAndAdvice();
-                }, interval * 1000); // interval是秒，定时器需要毫秒
-            } else {
-                throw new Error(data.error || '启动定时更新失败');
-            }
-        })
-        .catch(error => {
-            console.error('启动定时更新失败:', error);
-            alert(`启动定时更新失败: ${error.message}`);
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSchedulerStatus(true);
+                    console.log("定时更新启动成功");
+    */
 }
 
 // 停止定时更新
 function stopScheduler() {
+
     console.log("停止定时更新");
     if (autoUpdateTimer) {
         clearInterval(autoUpdateTimer);
         autoUpdateTimer = null;
     }
+    //updateSchedulerStatus(false);
+    alert('定时天气更新已停止');
+    setText('scheduler-status', '未启动');
+    const statusElement = document.getElementById('scheduler-status');
+    if (statusElement) statusElement.className = 'status-off';
+    setDisabled('start-scheduler-btn', false);
+    setDisabled('stop-scheduler-btn', true);
+    /*已完全迁移至前端，无需调用后端
     fetch('/stop_scheduler', {
         method: 'POST',
         headers: {
@@ -396,6 +403,7 @@ function stopScheduler() {
             console.error('停止定时更新失败:', error);
             alert(`停止定时更新失败: ${error.message}`);
         });
+        */
 }
 
 // 设置自动更新间隔
@@ -410,6 +418,7 @@ function setUpdateInterval() {
     alert(`更新间隔已设置为 ${interval} 秒`);
 }
 
+/*功能已完全迁移至前端
 // 更新定时器状态
 function updateSchedulerStatus(active) {
     schedulerActive = active;
@@ -421,6 +430,7 @@ function updateSchedulerStatus(active) {
     setDisabled('start-scheduler-btn', active);
     setDisabled('stop-scheduler-btn', !active);
 }
+*/
 
 // 手动刷新天气
 function refreshWeather() {

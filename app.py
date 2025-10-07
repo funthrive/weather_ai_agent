@@ -1,13 +1,10 @@
 # 主应用文件：创建Web服务，处理前端请求
-
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from core.weather import get_weather_data, format_weather_data, get_weather_alerts
 from core.ai_advisor import get_ai_advice
 from core.database import save_weather_record, save_advice_record, get_last_weather_record, get_weather_history, get_advice_history
 from datetime import datetime
-import os
 import requests
-import json
 
 # 创建Flask应用实例
 app = Flask(__name__)
@@ -15,10 +12,6 @@ app = Flask(__name__)
 # 配置静态文件路径
 app.config['STATIC_FOLDER'] = 'static'
 app.config['TEMPLATE_FOLDER'] = 'templates'
-
-# 确保templates目录存在
-if not os.path.exists('templates'):
-    os.makedirs('templates')
 
 # 存储前端回调函数（用于定时更新）
 frontend_callbacks = {}
@@ -30,7 +23,6 @@ def index():
     """
     return render_template('index.html')
 
-# 添加静态文件路由
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     """
@@ -64,10 +56,10 @@ def get_weather():
             # 保存到数据库
             record_id = save_weather_record(lat, lon, weather_data, alerts, source='manual')
             
-            # 获取上一次的天气记录
+            # 获取上一的天气记录
             previous_record = get_last_weather_record(lat, lon)
             
-            # 返回成功的JSON响应
+            # 返回JSON响应
             return jsonify({
                 'success': True,
                 'weather': weather_data,
@@ -77,17 +69,20 @@ def get_weather():
                 'previous_record': previous_record
             })
         else:
-            # 获取失败返回错误
+            # 返回错误
             return jsonify({'error': '获取天气数据失败'}), 500
             
     except Exception as e:
         import traceback
         print("后端报错：", e)
-        traceback.print_exc()  # 打印完整错误堆栈
+        traceback.print_exc()  # 打印完整错误报告
         return jsonify({'error': f'服务器错误: {str(e)}'}), 500
 
 @app.route('/get_location_name', methods=['POST'])
 def get_location_name():
+    """
+    获取位置名称建议API接口
+    """
     data = request.get_json()
     lat = data.get('lat')
     lon = data.get('lon')
@@ -116,6 +111,9 @@ def get_location_name():
 
 @app.route('/get_advice', methods=['POST'])
 def get_advice():
+    """
+    获取AI建议API接口
+    """
     try:
         data = request.get_json()
         weather_data = data.get('weather_data')
@@ -138,13 +136,14 @@ def get_advice():
 
     except Exception as e:
         return jsonify({'error': f'生成建议失败: {str(e)}'}), 500
-
+'''功能已迁移至前端
 @app.route('/start_scheduler', methods=['POST'])
 def start_scheduler():
     """
     启动定时天气更新
     """
     try:
+        # 开启定时器
         data = request.get_json()
         lat = data.get('lat')
         lon = data.get('lon')
@@ -153,11 +152,9 @@ def start_scheduler():
         if not lat or not lon:
             return jsonify({'error': '缺少经纬度参数'}), 400
         
-        # 这里需要实现定时器功能
-        # 暂时返回成功消息
         return jsonify({
             'success': True,
-            'message': f'定时天气更新已启动（模拟），间隔: {interval}秒'
+            'message': f'定时天气更新已启动，间隔: {interval}秒'
         })
         
     except Exception as e:
@@ -169,16 +166,15 @@ def stop_scheduler():
     停止定时天气更新
     """
     try:
-        # 这里需要实现停止定时器功能
-        # 暂时返回成功消息
+        # 停止定时器
         return jsonify({
             'success': True,
-            'message': '定时天气更新已停止（模拟）'
+            'message': '定时天气更新已停止'
         })
         
     except Exception as e:
         return jsonify({'error': f'停止定时任务失败: {str(e)}'}), 500
-
+'''
 @app.route('/get_history', methods=['POST'])
 def get_history():
     """
@@ -241,20 +237,6 @@ def register_callback():
             
     except Exception as e:
         return jsonify({'error': f'注册回调失败: {str(e)}'}), 500
-
-def _scheduler_callback(update_data):
-    """
-    定时任务回调函数，用于向前端发送更新数据
-    """
-    # 这里可以添加WebSocket或长轮询实现实时更新
-    # 目前我们先记录日志，后续可以扩展为实时推送
-    print(f"定时更新数据: {update_data}")
-    
-    # 清理过期的回调注册
-    current_time = datetime.now()
-    for client_id, info in list(frontend_callbacks.items()):
-        if (current_time - info['timestamp']).total_seconds() > 300:  # 5分钟未活动
-            del frontend_callbacks[client_id]
 
 # 启动Flask应用
 if __name__ == '__main__':
