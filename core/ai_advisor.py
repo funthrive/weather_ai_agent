@@ -26,6 +26,9 @@ def extract_brief_current(weather):
     }
 
 def get_ai_advice(current_weather_data, last_update_weather_data=None, previous_weather_data=None, force_update=False):
+    # 在AI建议生成前排除 current.weather 字段，避免无用token消耗
+    if 'current' in current_weather_data and 'weather' in current_weather_data['current']:
+        del current_weather_data['current']['weather']
     """
     基于天气数据获取AI建议
     :param current_weather_data: 当前天气数据字典
@@ -39,7 +42,16 @@ def get_ai_advice(current_weather_data, last_update_weather_data=None, previous_
     try:
         # 获取当前预警信息
         current_alerts = get_weather_alerts(current_weather_data)
-        
+
+        # 规范 daily 字段，去除 sunrise、sunset、moonrise、moonset、moon_phase
+        if 'daily' in current_weather_data:
+            for day in current_weather_data['daily']:
+                day.pop('sunrise', None)
+                day.pop('sunset', None)
+                day.pop('moonrise', None)
+                day.pop('moonset', None)
+                day.pop('moon_phase', None)
+
         # 根据是否强制更新选择不同的系统提示词
         if force_update:
             system_prompt = """你是一个专业的天气助手。请根据提供的天气数据，生成一份结构化的天气建议，务必采用markdown格式规范回答保证美观，但不要用代码块（```）包裹，内容包括：
@@ -66,7 +78,7 @@ def get_ai_advice(current_weather_data, last_update_weather_data=None, previous_
             "need_update": true/false（如相比之前温度变化显著、天气状况改变、有新的预警信息或者你觉得有任何更新建议的必要则为true，否则为false）, 
             "advice": "你的建议内容（务必采用markdown格式以保证美观，但不要用代码块（```）包裹，要包含完整的建议内容，结构化规范回答，"need_update": false时，此项留空）" 
             }"""
-        
+
         # 准备用户消息
         user_message = f"当前天气数据（完整）：\n{json.dumps(current_weather_data, indent=2)}"
 
@@ -74,21 +86,14 @@ def get_ai_advice(current_weather_data, last_update_weather_data=None, previous_
             brief_last_update = extract_brief_current(last_update_weather_data)
             user_message += f"\n\n上次更新时的天气数据（仅供参考）：\n{json.dumps(brief_last_update['current'], indent=2)}"
 
-        if previous_weather_data and not force_update:
-            brief_previous = extract_brief_current(previous_weather_data)
-            user_message += f"\n\n上一份天气数据（仅供参考）：\n{json.dumps(brief_previous['current'], indent=2)}"
-        
-        # 添加当前的预警信息
-        if current_alerts:
-            current_alerts_text = "\n".join(current_alerts)
-            user_message += f"\n\n当前有以下天气预警：\n{current_alerts_text}"
-        
+        # 已不再需要上一份天气数据（仅供参考）内容，故不再拼接 previous_weather_data
+
         # 使用requests直接调用DeepSeek API
         headers = {
             "Authorization": f"Bearer {DeepSeekConfig.API_KEY}",
             "Content-Type": "application/json"
         }
-        
+
         data = {
             "model": DeepSeekConfig.MODEL,
             "messages": [
@@ -97,47 +102,47 @@ def get_ai_advice(current_weather_data, last_update_weather_data=None, previous_
             ],
             "stream": False
         }
-        
+
         # 如果不是强制更新，要求返回JSON格式
         if not force_update:
             data["response_format"] = {"type": "json_object"}
-        
+
         # 发送POST请求到DeepSeek API
         response = requests.post(
             f"{DeepSeekConfig.API_URL}/chat/completions",
             headers=headers,
             json=data
         )
-        
+
         # 检查响应状态
         if response.status_code == 200:
             response_data = response.json()
             ai_response = response_data['choices'][0]['message']['content']
-            
+
             if force_update:
                 # 强制更新时，直接返回建议文本
                 return {"advice": ai_response, "need_update": True}
             else:
-              # 非强制更新时，解析JSON响应
+                # 非强制更新时，解析JSON响应
                 try:
                     parsed_response = json.loads(ai_response)
                     need_update = parsed_response.get("need_update", False)
                     advice = parsed_response.get("advice", "")
                     return {
-                    "advice": advice,
-                    "need_update": need_update
+                        "advice": advice,
+                        "need_update": need_update
                     }
                 except Exception as e:
-                # 如果JSON解析失败，默认需要更新，且只返回建议内容（markdown）
+                    # 如果JSON解析失败，默认需要更新，且只返回建议内容（markdown）
                     print(f"AI响应不是有效的JSON，默认需要更新建议: {e}")
                     # 只返回建议内容，不返回整个JSON字符串
                     return {"advice": ai_response, "need_update": True}
-                
+
         else:
             print(f"DeepSeek API请求失败，状态码: {response.status_code}")
             print(f"响应内容: {response.text}")
             return {"advice": "抱歉，暂时无法生成建议。请稍后再试。", "need_update": False}
-        
+
     except Exception as e:
         # 处理可能的错误
         print(f"AI建议生成错误: {e}")

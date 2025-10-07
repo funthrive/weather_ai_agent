@@ -2,7 +2,6 @@
 
 import sqlite3
 import json
-from datetime import datetime
 
 # 初始化数据库，创建必要的表
 def init_db():
