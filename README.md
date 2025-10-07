@@ -40,7 +40,7 @@
    - 示例：
      ```
      DEEPSEEK_API_KEY=你的key
-     OWM_API_KEY=你的key
+     OWM_API_KEY=你的key（建议使用OpenWeatherMap API Key，防止兼容性问题）
      ```
 
 4. 启动项目
@@ -76,6 +76,7 @@ weather_ai_agent/
 ```
 
 ## 贡献与交流
+（感谢腾讯元宝，DeepSeek,GitHub Copilot的 大 力 支 持 ！）
 
 欢迎交流和建议！
 
