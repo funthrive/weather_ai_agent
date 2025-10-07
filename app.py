@@ -6,6 +6,7 @@ from core.ai_advisor import get_ai_advice
 from core.database import save_weather_record, save_advice_record, get_last_weather_record, get_weather_history, get_advice_history
 from datetime import datetime
 import os
+import requests
 import json
 
 # 创建Flask应用实例
@@ -84,6 +85,34 @@ def get_weather():
         print("后端报错：", e)
         traceback.print_exc()  # 打印完整错误堆栈
         return jsonify({'error': f'服务器错误: {str(e)}'}), 500
+
+@app.route('/get_location_name', methods=['POST'])
+def get_location_name():
+    data = request.get_json()
+    lat = data.get('lat')
+    lon = data.get('lon')
+    try:
+        from config import WeatherConfig
+        api_key = WeatherConfig.API_KEY
+        if not api_key:
+            return jsonify({'location_name': ''})
+        url = f'http://api.openweathermap.org/geo/1.0/reverse?lat={lat}&lon={lon}&limit=1&appid={api_key}'
+        resp = requests.get(url)
+        if resp.status_code == 200 and resp.json():
+            info = resp.json()[0]
+            name = info.get('name', '')
+            country = info.get('country', '')
+            state = info.get('state', '')
+            display = name
+            if state:
+                display += f', {state}'
+            if country:
+                display += f', {country}'
+            return jsonify({'location_name': display})
+        return jsonify({'location_name': ''})
+    except Exception as e:
+        print('get_location_name error:', e)
+        return jsonify({'location_name': ''})
 
 @app.route('/get_advice', methods=['POST'])
 def get_advice():

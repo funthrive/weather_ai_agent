@@ -48,6 +48,22 @@ function getCurrentLocation() {
 
                 // 更新位置显示
                 setText('current-location', `纬度: ${currentLocation.lat.toFixed(4)}, 经度: ${currentLocation.lon.toFixed(4)}`);
+                // 获取城市名并显示
+                fetch('/get_location_name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lat: currentLocation.lat,
+                        lon: currentLocation.lon
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.location_name) {
+                            setText('current-location', `纬度: ${currentLocation.lat.toFixed(4)}, 经度: ${currentLocation.lon.toFixed(4)}`);
+                        }
+                        setText('location-city', data.location_name || '-');
+                    });
                 setText('location-time', formatDateTime(new Date()));
 
                 // 启用按钮
@@ -236,7 +252,7 @@ function autoUpdateWeatherAndAdvice() {
                             setText('advice-update-time', formatDateTime(now));
                             lastUpdateWeatherData = currentWeatherData;
                         }
-                        // 如果 AI 说不需要更新建议，则什么都不做
+                        // 如果 AI 说不需要更新建议，则只刷刷新最后自动更新时间
                     })
                     .catch(error => {
                         console.error('自动获取AI建议失败:', error);
