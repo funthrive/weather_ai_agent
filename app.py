@@ -56,8 +56,8 @@ def get_weather():
             # 保存到数据库
             record_id = save_weather_record(lat, lon, weather_data, alerts, source='manual')
             
-            # 获取上一的天气记录
-            previous_record = get_last_weather_record(lat, lon)
+            # 获取上一的天气记录（排除当前刚插入的记录）
+            previous_record = get_last_weather_record(lat, lon, exclude_id=record_id)
             
             # 返回JSON响应
             return jsonify({
@@ -199,13 +199,14 @@ def get_history():
             advice_history = get_advice_history(record['latitude'], record['longitude'], limit)
     
             formatted_history.append({
-                 'id': record['id'],
-                  'timestamp': record['timestamp'],
-                 'formatted': format_weather_data(record['weather_data']),
-                  'alerts': record['alerts'],
-                  'source': record['source'],
-                  'advice_history': advice_history
-    })
+                'id': record['id'],
+                'timestamp': record['timestamp'],
+                'formatted': format_weather_data(record['weather_data']),
+                'alerts': record['alerts'],
+                'source': record['source'],
+                'advice_history': advice_history,
+                'timezone': record.get('timezone', 'Asia/Shanghai')
+            })
         
         return jsonify({
             'success': True,

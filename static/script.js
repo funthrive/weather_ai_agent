@@ -159,7 +159,7 @@ function getWeatherDataWithRetry(lat, lon, retryCount) {
             }
         })
         .catch(error => {
-            if ((error.message && error.message.includes('Failed to fetch')) && retryCount < 4) {
+            if (retryCount < 4) {
                 setText('weather-info', `请求失败，正在重试第${retryCount + 1}次...`);
                 setTimeout(() => getWeatherDataWithRetry(lat, lon, retryCount + 1), 2000);
             } else {
@@ -268,8 +268,18 @@ function getAdviceWithRetry(weatherData, lastUpdateWeatherData, previousWeatherD
             force_update: forceUpdate
         })
     })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP错误! 状态码: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            // 自动更新时，只有收到AI响应时才刷新自动更新时间
+            if (!forceUpdate) {
+                const now = new Date();
+                setText('last-auto-update', '最后自动更新: ' + formatDateTime(now));
+            }
             if (data.success) {
                 setHTML('advice-info', marked.parse(data.advice || '暂无建议'));
                 setText('advice-update-type', forceUpdate ? '手动更新' : '自动更新');
@@ -285,7 +295,7 @@ function getAdviceWithRetry(weatherData, lastUpdateWeatherData, previousWeatherD
             }
         })
         .catch(error => {
-            if ((error.message && error.message.includes('Failed to fetch')) && retryCount < 4) {
+            if (retryCount < 4) {
                 setText('advice-info', `建议请求失败，正在重试第${retryCount + 1}次...`);
                 setTimeout(() => getAdviceWithRetry(weatherData, lastUpdateWeatherData, previousWeatherData, recordId, forceUpdate, retryCount + 1, button), 2000);
             } else {
@@ -476,24 +486,20 @@ function loadHistory() {
 // 显示历史记录
 function displayHistory(history) {
     const historyInfo = document.getElementById('history-info');
-
     if (!historyInfo) return;
-
     if (!history || history.length === 0) {
         historyInfo.innerHTML = '<div class="history-item">暂无历史记录</div>';
         return;
     }
-
     let html = '';
     history.forEach(record => {
         html += `
         <div class="history-item">
-            <div class="history-time">📅 ${record.timestamp}</div>
+            <div class="history-time">📅 ${formatDateTimeWithTimezone(record.timestamp, record.timezone)}</div>
             <div class="history-content">${record.formatted}</div>
         </div>
         `;
     });
-
     historyInfo.innerHTML = html;
 }
 
@@ -537,6 +543,20 @@ function formatDateTime(date) {
     const min = String(d.getMinutes()).padStart(2, '0');
     const ss = String(d.getSeconds()).padStart(2, '0');
     return `${yyyy}/${mm}/${dd} ${hh}:${min}:${ss}`;
+}
+
+// 按时区格式化时间（用于历史记录）
+function formatDateTimeWithTimezone(date, timezone) {
+    const d = date instanceof Date ? date : new Date(date);
+    try {
+        return new Intl.DateTimeFormat('zh-CN', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            timeZone: timezone || 'Asia/Shanghai'
+        }).format(d);
+    } catch (e) {
+        return formatDateTime(d); // 回退
+    }
 }
 
 // 工具函数：安全设置文本内容

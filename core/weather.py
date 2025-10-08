@@ -21,9 +21,8 @@ def get_weather_data(lat, lon):
     }
     
     try:
-        # 发送GET请求到天气API
-        response = requests.get(WeatherConfig.API_URL, params=params)
-        
+        # 发送GET请求到天气API，设置超时时间10秒
+        response = requests.get(WeatherConfig.API_URL, params=params, timeout=10)
         # 检查响应状态码，200表示成功
         if response.status_code == 200:
             # 解析JSON格式的响应数据
@@ -34,7 +33,9 @@ def get_weather_data(lat, lon):
             print(f"天气API请求失败，状态码: {response.status_code}")
             print(f"响应内容: {response.text}")
             return None
-            
+    except requests.exceptions.Timeout:
+        print("天气API请求超时")
+        return None
     except requests.exceptions.RequestException as e:
         # 处理网络请求异常
         print(f"网络请求错误: {e}")
