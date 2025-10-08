@@ -14,7 +14,7 @@ app.config['STATIC_FOLDER'] = 'static'
 app.config['TEMPLATE_FOLDER'] = 'templates'
 
 # 存储前端回调函数（用于定时更新）
-frontend_callbacks = {}
+# frontend_callbacks = {}
 
 @app.route('/')
 def index():
@@ -214,7 +214,9 @@ def get_history():
             
     except Exception as e:
         return jsonify({'error': f'获取历史记录失败: {str(e)}'}), 500
+    
 
+'''功能已迁移至前端
 @app.route('/register_callback', methods=['POST'])
 def register_callback():
     """
@@ -237,7 +239,7 @@ def register_callback():
             
     except Exception as e:
         return jsonify({'error': f'注册回调失败: {str(e)}'}), 500
-
+'''
 # 启动Flask应用
 if __name__ == '__main__':
     # 运行应用，开启调试模式（开发时使用）

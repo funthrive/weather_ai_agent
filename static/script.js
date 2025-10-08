@@ -166,11 +166,11 @@ function updateWeatherDisplay(data, sourceType = '手动更新') {
     currentWeatherData = data.weather;
     currentRecordId = data.record_id;
 
-    // 取当前天气数据和时区
+    // 获取当前天气数据
     const weather = data.weather.current;
     const timezone = data.weather.timezone;
 
-    // 动态设置标签栏图标为当前天气图标
+    // 个性化标签栏图标为当前天气图标
     if (weather.weather && weather.weather[0] && weather.weather[0].icon) {
         const iconId = weather.weather[0].icon;
         const iconUrl = `https://openweathermap.org/img/wn/${iconId}.png`;
@@ -191,13 +191,29 @@ function updateWeatherDisplay(data, sourceType = '手动更新') {
     setText('last-update', formatDateTime(new Date()));
     setText('update-source', sourceType);
 
-    // 更新预警信息（始终显示）
-    if (data.alerts && data.alerts.length > 0) {
-        setText('alerts-info', data.alerts.join('\n\n'));
-        setText('alerts-count', data.alerts.length);
-    } else {
-        setText('alerts-info', '暂无预警信息');
-        setText('alerts-count', '0');
+    // 预警信息模块动画显示/隐藏
+    const alertsCard = document.getElementById('alerts-card');
+    const hasAlerts = data.alerts && data.alerts.length > 0;
+
+    if (alertsCard) {
+        if (hasAlerts) {
+            setText('alerts-info', data.alerts.join('\n\n'));
+            setText('alerts-count', data.alerts.length);
+
+            // 显示并动画
+            alertsCard.style.display = 'block';
+            alertsCard.classList.add('alert-fade-in');
+            setTimeout(() => {
+                alertsCard.classList.remove('alert-fade-in');
+            }, 800);
+        } else {
+            // 动画隐藏
+            alertsCard.classList.add('alert-fade-out');
+            setTimeout(() => {
+                alertsCard.classList.remove('alert-fade-out');
+                alertsCard.style.display = 'none';
+            }, 800);
+        }
     }
 
     console.log("天气显示更新完成");

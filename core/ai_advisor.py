@@ -33,16 +33,13 @@ def get_ai_advice(current_weather_data, last_update_weather_data=None, previous_
     基于天气数据获取AI建议
     :param current_weather_data: 当前天气数据字典
     :param previous_weather_data: 之前的天气数据字典（可选）
-    :param force_update: 是否强制更新建议（用户主动请求时使用）
+    :param force_update: 是否强制更新建议（“给我点建议”时使用）
     :return: 字典包含建议文本和是否需要更新的标志
     """
     if not current_weather_data:
         return {"advice": "无法获取天气数据，请检查网络连接或API配置", "need_update": False}
     
     try:
-        # 获取当前预警信息
-        current_alerts = get_weather_alerts(current_weather_data)
-
         # 规范 daily 字段，去除 sunrise、sunset、moonrise、moonset、moon_phase
         if 'daily' in current_weather_data:
             for day in current_weather_data['daily']:
@@ -86,7 +83,6 @@ def get_ai_advice(current_weather_data, last_update_weather_data=None, previous_
             brief_last_update = extract_brief_current(last_update_weather_data)
             user_message += f"\n\n上次更新时的天气数据（仅供参考）：\n{json.dumps(brief_last_update['current'], indent=2)}"
 
-        # 已不再需要上一份天气数据（仅供参考）内容，故不再拼接 previous_weather_data
 
         # 使用requests直接调用DeepSeek API
         headers = {
