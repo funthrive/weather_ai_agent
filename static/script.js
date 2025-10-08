@@ -131,6 +131,10 @@ function getWeatherData(lat, lon) {
     // 显示加载状态
     setText('weather-info', "正在获取天气数据...");
 
+    // 设置超时控制器
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000); // 55秒超时
+
     fetch('/get_weather', {
         method: 'POST',
         headers: {
@@ -139,9 +143,11 @@ function getWeatherData(lat, lon) {
         body: JSON.stringify({
             lat: lat,
             lon: lon
-        })
+        }),
+        signal: controller.signal
     })
         .then(response => {
+            clearTimeout(timeout);
             if (!response.ok) {
                 throw new Error(`HTTP错误! 状态码: ${response.status}`);
             }
@@ -156,8 +162,15 @@ function getWeatherData(lat, lon) {
             }
         })
         .catch(error => {
+            clearTimeout(timeout);
+            if (error.name === 'AbortError') {
+                setText('weather-info', '请求超时，请稍后重试');
+            } else if (error.message && error.message.includes('Failed to fetch')) {
+                setText('weather-info', '网络连接异常或服务器无响应');
+            } else {
+                setText('weather-info', `获取天气数据失败: ${error.message}`);
+            }
             console.error('获取天气数据失败:', error);
-            setText('weather-info', `获取天气数据失败: ${error.message}`);
         });
 }
 
