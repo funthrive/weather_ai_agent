@@ -125,11 +125,11 @@ function enableBasicButtons() {
 }
 
 // 获取天气数据
-function getWeatherData(lat, lon) {
-    getWeatherDataWithRetry(lat, lon, 0);
+function getWeatherData(lat, lon, sourceType = '手动更新') {
+    getWeatherDataWithRetry(lat, lon, 0, sourceType);
 }
 
-function getWeatherDataWithRetry(lat, lon, retryCount) {
+function getWeatherDataWithRetry(lat, lon, retryCount, sourceType = '手动更新') {
     console.log("获取天气数据:", lat, lon, `重试次数: ${retryCount}`);
     if (retryCount === 0) {
         setText('weather-info', "正在获取天气数据...");
@@ -152,7 +152,7 @@ function getWeatherDataWithRetry(lat, lon, retryCount) {
         })
         .then(data => {
             if (data.success) {
-                updateWeatherDisplay(data, '手动更新');
+                updateWeatherDisplay(data, sourceType);
                 console.log("天气数据获取成功");
             } else {
                 throw new Error(data.error || '获取天气数据失败');
@@ -161,7 +161,7 @@ function getWeatherDataWithRetry(lat, lon, retryCount) {
         .catch(error => {
             if (retryCount < 4) {
                 setText('weather-info', `请求失败，正在重试第${retryCount + 1}次...`);
-                setTimeout(() => getWeatherDataWithRetry(lat, lon, retryCount + 1), 2000);
+                setTimeout(() => getWeatherDataWithRetry(lat, lon, retryCount + 1, sourceType), 2000);
             } else {
                 setText('weather-info', `获取天气数据失败: ${error.message}`);
                 console.error('获取天气数据失败:', error);
@@ -232,7 +232,7 @@ function updateWeatherDisplay(data, sourceType = '手动更新') {
 function autoUpdateWeatherAndAdvice() {
     if (!currentLocation) return;
     previousWeatherData = currentWeatherData;
-    getWeatherDataWithRetry(currentLocation.lat, currentLocation.lon, 0);
+    getWeatherDataWithRetry(currentLocation.lat, currentLocation.lon, 0, '自动更新');
     setTimeout(() => {
         getAdviceWithRetry(currentWeatherData, lastUpdateWeatherData, previousWeatherData, currentRecordId, false, 0);
     }, 1000);
@@ -426,7 +426,7 @@ function refreshWeather() {
     }
 
     console.log("手动刷新天气");
-    getWeatherData(currentLocation.lat, currentLocation.lon);
+    getWeatherData(currentLocation.lat, currentLocation.lon, '手动更新');
 }
 
 // 历史记录功能
