@@ -126,12 +126,17 @@ function enableBasicButtons() {
 
 // 获取天气数据
 function getWeatherData(lat, lon) {
-    console.log("获取天气数据:", lat, lon);
+    getWeatherDataWithRetry(lat, lon, 0);
+}
 
-    // 显示加载状态
-    setText('weather-info', "正在获取天气数据...");
+// 带自动重试的天气数据请求
+function getWeatherDataWithRetry(lat, lon, retryCount) {
+    console.log(`获取天气数据: ${lat}, ${lon} (重试次数: ${retryCount})`);
 
-    // 设置超时控制器
+    if (retryCount === 0) {
+        setText('weather-info', "正在获取天气数据...");
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 55000); // 55秒超时
 
@@ -163,14 +168,20 @@ function getWeatherData(lat, lon) {
         })
         .catch(error => {
             clearTimeout(timeout);
-            if (error.name === 'AbortError') {
-                setText('weather-info', '请求超时，请稍后重试');
-            } else if (error.message && error.message.includes('Failed to fetch')) {
-                setText('weather-info', '网络连接异常或服务器无响应');
+            // 仅在网络异常或超时时自动重试，最多2次
+            if ((error.name === 'AbortError' || (error.message && error.message.includes('Failed to fetch'))) && retryCount < 2) {
+                setText('weather-info', `请求失败，正在重试第${retryCount + 1}次...`);
+                setTimeout(() => getWeatherDataWithRetry(lat, lon, retryCount + 1), 2000);
             } else {
-                setText('weather-info', `获取天气数据失败: ${error.message}`);
+                if (error.name === 'AbortError') {
+                    setText('weather-info', '请求超时，请稍后重试');
+                } else if (error.message && error.message.includes('Failed to fetch')) {
+                    setText('weather-info', '网络连接异常或服务器无响应');
+                } else {
+                    setText('weather-info', `获取天气数据失败: ${error.message}`);
+                }
+                console.error('获取天气数据失败:', error);
             }
-            console.error('获取天气数据失败:', error);
         });
 }
 
