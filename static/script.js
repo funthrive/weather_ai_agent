@@ -129,17 +129,11 @@ function getWeatherData(lat, lon) {
     getWeatherDataWithRetry(lat, lon, 0);
 }
 
-// 带自动重试的天气数据请求
 function getWeatherDataWithRetry(lat, lon, retryCount) {
-    console.log(`获取天气数据: ${lat}, ${lon} (重试次数: ${retryCount})`);
-
+    console.log("获取天气数据:", lat, lon, `重试次数: ${retryCount}`);
     if (retryCount === 0) {
         setText('weather-info', "正在获取天气数据...");
     }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 55000); // 55秒超时
-
     fetch('/get_weather', {
         method: 'POST',
         headers: {
@@ -148,11 +142,9 @@ function getWeatherDataWithRetry(lat, lon, retryCount) {
         body: JSON.stringify({
             lat: lat,
             lon: lon
-        }),
-        signal: controller.signal
+        })
     })
         .then(response => {
-            clearTimeout(timeout);
             if (!response.ok) {
                 throw new Error(`HTTP错误! 状态码: ${response.status}`);
             }
@@ -167,19 +159,11 @@ function getWeatherDataWithRetry(lat, lon, retryCount) {
             }
         })
         .catch(error => {
-            clearTimeout(timeout);
-            // 仅在网络异常或超时时自动重试，最多2次
-            if ((error.name === 'AbortError' || (error.message && error.message.includes('Failed to fetch'))) && retryCount < 2) {
+            if ((error.message && error.message.includes('Failed to fetch')) && retryCount < 4) {
                 setText('weather-info', `请求失败，正在重试第${retryCount + 1}次...`);
                 setTimeout(() => getWeatherDataWithRetry(lat, lon, retryCount + 1), 2000);
             } else {
-                if (error.name === 'AbortError') {
-                    setText('weather-info', '请求超时，请稍后重试');
-                } else if (error.message && error.message.includes('Failed to fetch')) {
-                    setText('weather-info', '网络连接异常或服务器无响应');
-                } else {
-                    setText('weather-info', `获取天气数据失败: ${error.message}`);
-                }
+                setText('weather-info', `获取天气数据失败: ${error.message}`);
                 console.error('获取天气数据失败:', error);
             }
         });
@@ -247,63 +231,11 @@ function updateWeatherDisplay(data, sourceType = '手动更新') {
 // 自动刷新天气和AI建议
 function autoUpdateWeatherAndAdvice() {
     if (!currentLocation) return;
-
-    // 保存上一次天气数据
     previousWeatherData = currentWeatherData;
-
-    // 获取最新天气数据
-    fetch('/get_weather', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            lat: currentLocation.lat,
-            lon: currentLocation.lon
-        })
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateWeatherDisplay(data, '自动更新');
-                currentWeatherData = data.weather;
-                currentRecordId = data.record_id;
-
-                // 自动请求AI建议（非强制，让AI判断是否需要新建议）
-                fetch('/get_advice', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        weather_data: currentWeatherData,
-                        last_update_weather_data: lastUpdateWeatherData,
-                        previous_weather_data: previousWeatherData,
-                        record_id: currentRecordId,
-                        force_update: false
-                    })
-                })
-                    .then(response => response.json())
-                    .then(adviceData => {
-                        // 1. 记录自动建议请求时间（无论AI是否需要建议）
-                        const now = new Date();
-                        setText('last-auto-update', '最后自动更新: ' + formatDateTime(now));
-
-                        // 2. 如果AI需要更新建议，渲染建议内容
-                        if (adviceData.success && adviceData.need_update) {
-                            setHTML('advice-info', marked.parse(adviceData.advice || '暂无建议'));
-                            setText('advice-update-type', '自动更新');
-                            setText('advice-update-time', formatDateTime(now));
-                            lastUpdateWeatherData = currentWeatherData;
-                        }
-                        // 如果 AI 说不需要更新建议，则只刷刷新最后自动更新时间
-                    })
-                    .catch(error => {
-                        console.error('自动获取AI建议失败:', error);
-                        setText('advice-info', `自动获取建议失败: ${error.message}`);
-                    });
-            }
-        })
-        .catch(error => {
-            console.error('自动获取天气数据失败:', error);
-            setText('weather-info', `自动获取天气数据失败: ${error.message}`);
-        });
+    getWeatherDataWithRetry(currentLocation.lat, currentLocation.lon, 0);
+    setTimeout(() => {
+        getAdviceWithRetry(currentWeatherData, lastUpdateWeatherData, previousWeatherData, currentRecordId, false, 0);
+    }, 1000);
 }
 
 // 获取AI建议（手动）
@@ -312,53 +244,57 @@ function getAdvice() {
         alert('请等待天气数据加载完成');
         return;
     }
-
     console.log("用户请求AI建议");
-
     const button = document.getElementById('get-advice-btn');
     if (button) {
         button.disabled = true;
         button.textContent = '生成中...';
     }
-
     setText('advice-info', 'AI正在生成建议...');
+    getAdviceWithRetry(currentWeatherData, lastUpdateWeatherData, previousWeatherData, currentRecordId, true, 0, button);
+}
 
+function getAdviceWithRetry(weatherData, lastUpdateWeatherData, previousWeatherData, recordId, forceUpdate, retryCount, button) {
     fetch('/get_advice', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            weather_data: currentWeatherData,
+            weather_data: weatherData,
             last_update_weather_data: lastUpdateWeatherData,
             previous_weather_data: previousWeatherData,
-            record_id: currentRecordId,
-            force_update: true
+            record_id: recordId,
+            force_update: forceUpdate
         })
     })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // 只用 setHTML 渲染建议内容
-                console.log('手动建议内容:', data.advice);
-                console.log('手动建议HTML:', marked.parse(data.advice || '暂无建议'));
                 setHTML('advice-info', marked.parse(data.advice || '暂无建议'));
-                setText('advice-update-type', '手动更新');
+                setText('advice-update-type', forceUpdate ? '手动更新' : '自动更新');
                 setText('advice-update-time', formatDateTime(new Date()));
-                lastUpdateWeatherData = currentWeatherData;
+                lastUpdateWeatherData = weatherData;
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = '💬 给我点建议';
+                }
                 console.log("AI建议获取成功");
             } else {
                 throw new Error(data.error || '生成建议失败');
             }
         })
         .catch(error => {
-            console.error('获取AI建议失败:', error);
-            setText('advice-info', `获取建议失败: ${error.message}`);
-        })
-        .finally(() => {
-            if (button) {
-                button.disabled = false;
-                button.textContent = '💬 给我点建议';
+            if ((error.message && error.message.includes('Failed to fetch')) && retryCount < 4) {
+                setText('advice-info', `建议请求失败，正在重试第${retryCount + 1}次...`);
+                setTimeout(() => getAdviceWithRetry(weatherData, lastUpdateWeatherData, previousWeatherData, recordId, forceUpdate, retryCount + 1, button), 2000);
+            } else {
+                setText('advice-info', `获取建议失败: ${error.message}`);
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = '💬 给我点建议';
+                }
+                console.error('获取AI建议失败:', error);
             }
         });
 }
