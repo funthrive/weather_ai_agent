@@ -43,12 +43,8 @@ function getCurrentLocation() {
                     lat: position.coords.latitude,
                     lon: position.coords.longitude
                 };
-
                 console.log("位置获取成功:", currentLocation);
-
-                // 更新位置显示
                 setText('current-location', `纬度: ${currentLocation.lat.toFixed(4)}, 经度: ${currentLocation.lon.toFixed(4)}`);
-                // 获取城市名并显示
                 fetch('/get_location_name', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -65,16 +61,12 @@ function getCurrentLocation() {
                         setText('location-city', data.location_name || '-');
                     });
                 setText('location-time', formatDateTime(new Date()));
-
-                // 启用按钮
                 enableButtons();
-
-                // 获取天气数据
                 getWeatherData(currentLocation.lat, currentLocation.lon);
             },
             function (error) {
+                // 统一处理所有定位失败情况，自动填充厦门
                 console.error("位置获取失败:", error);
-
                 let errorMessage = "无法获取位置信息: ";
                 switch (error.code) {
                     case error.PERMISSION_DENIED:
@@ -90,21 +82,24 @@ function getCurrentLocation() {
                         errorMessage += "未知错误";
                         break;
                 }
-
-                setText('weather-info', errorMessage);
-                setText('current-location', "获取失败");
-
-                // 即使位置获取失败，也启用部分按钮用于测试
-                enableBasicButtons();
+                setText('weather-info', errorMessage + '，已自动使用默认位置厦门');
+                setText('current-location', "默认：厦门");
+                setText('location-city', '厦门');
+                setText('location-time', formatDateTime(new Date()));
+                currentLocation = { lat: 24.4798, lon: 118.0894 };
+                enableButtons();
+                getWeatherData(currentLocation.lat, currentLocation.lon);
             }
         );
     } else {
         console.error("浏览器不支持地理位置API");
-        setText('weather-info', "您的浏览器不支持地理位置功能");
-        setText('current-location', "不支持");
-
-        // 启用基本按钮用于测试
-        enableBasicButtons();
+        setText('weather-info', "您的浏览器不支持地理位置功能，已自动使用默认位置厦门");
+        setText('current-location', "默认：厦门");
+        setText('location-city', '厦门');
+        setText('location-time', formatDateTime(new Date()));
+        currentLocation = { lat: 24.4798, lon: 118.0894 };
+        enableButtons();
+        getWeatherData(currentLocation.lat, currentLocation.lon);
     }
 }
 
