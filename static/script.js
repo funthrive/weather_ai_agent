@@ -90,7 +90,7 @@ function getCurrentLocation() {
                 enableButtons();
                 getWeatherData(currentLocation.lat, currentLocation.lon);
             }
-        );
+            , { timeout: 10000 }); // 10秒超时
     } else {
         console.error("浏览器不支持地理位置API");
         setText('weather-info', "您的浏览器不支持地理位置功能，已自动使用默认位置厦门");
