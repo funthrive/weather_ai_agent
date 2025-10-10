@@ -8,6 +8,7 @@ venv/
 env/
 ENV/
 .venv/
+weather_agent_env/
 
 # 安装包
 *.egg
